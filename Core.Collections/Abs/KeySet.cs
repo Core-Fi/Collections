@@ -5,15 +5,15 @@ namespace Core.Collections
 {
     public abstract class KeySetItem
     {
-        private int m_Index;
+        private int m_KeyIndex;
         internal object set;
 
-        public int index
+        public int KeyIndex
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => m_Index;
+            get => m_KeyIndex;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal set => m_Index = value;
+            internal set => m_KeyIndex = value;
         }
     }
 
@@ -92,11 +92,13 @@ namespace Core.Collections
         {
             if (m_Count > 0)
             {
-                foreach (var t in this)
+                for (int i = 0; i < m_Count; ++i)
                 {
-                    t.set = null;
+                    m_Buffer[i].set = null;
+                    m_Buffer[i] = null;
                 }
-                Array.Clear(m_Buffer, 0, m_Count);
+
+                //Array.Clear(m_Buffer, 0, m_Count);
                 m_Count = 0;
                 ++m_Version;
             }
@@ -130,30 +132,102 @@ namespace Core.Collections
                 this.CheckCapacity(m_Count + 1);
 
                 item.set = this;
-                item.index = m_Count;
+                item.KeyIndex = m_Count;
                 m_Buffer[m_Count++] = item;
                 ++m_Version;
             }
             else if (item.set == this)
             {
-                throw new Exception("the item has already added");
+                throw new Exception("the item add has already added");
+            }
+            else if (item.set != this)
+            {
+                throw new Exception("the item add has already added to another set");
+            }
+        }
+
+        public void Insert(T at, T item)
+        {
+            if (item == null)
+            {
+                throw new NullReferenceException();
+            }
+            
+            if (!this.Contains(at))
+            {
+                throw new Exception("KeySet.Insert at is not belong to set");
+            }
+            
+            if (item.set == null)
+            {
+                this.InsertAtIndexNoCheck(at.KeyIndex, item);
             }
             else if (item.set == this)
             {
-                throw new Exception("the item has already added to another set");
+                throw new Exception("the item insert has already added");
             }
+            else if (item.set != this)
+            {
+                throw new Exception("the item insert has already added to another set");
+            }
+        }
+        public void InsertAfter(T at, T item)
+        {
+            if (item == null)
+            {
+                throw new NullReferenceException();
+            }
+            
+            if (!this.Contains(at))
+            {
+                throw new Exception("KeySet.InsertAfter at is not belong to set");
+            }
+            
+            if (item.set == null)
+            {
+                this.InsertAtIndexNoCheck(at.KeyIndex + 1, item);
+            }
+            else if (item.set == this)
+            {
+                throw new Exception("the item insert has already added");
+            }
+            else if (item.set != this)
+            {
+                throw new Exception("the item insert has already added to another set");
+            }
+        }
+        
+        private void InsertAtIndexNoCheck(int insertIndex, T item)
+        {
+            this.CheckCapacity(m_Count + 1);
+
+            for (int i = m_Count; i > insertIndex; --i)
+            {
+                m_Buffer[i] = m_Buffer[i - 1];// move
+                m_Buffer[i].KeyIndex = i;// index changed
+            }
+
+            m_Buffer[insertIndex] = item;
+            item.set = this;
+            item.KeyIndex = insertIndex;// index set
+            ++m_Count;
+                
+            ++m_Version;
         }
 
         public bool Contains(T item)
         {
-            return item.set == this && item == m_Buffer[item.index];
+            return item.set == this;// && item == m_Buffer[item.index];
         }
 
+        /// <summary>
+        /// Remove will break index order
+        /// </summary>
         public void Remove(T item)
         {
-            if (item.set == this && item == m_Buffer[item.index])
+            if (item.set == this && item == m_Buffer[item.KeyIndex])
             {
-                int index = item.index;
+                int index = item.KeyIndex;
                 int last = m_Count - 1;
                 
                 if (index == last)
@@ -164,6 +238,7 @@ namespace Core.Collections
                 else
                 {
                     m_Buffer[index] = m_Buffer[last];
+                    m_Buffer[index].KeyIndex = index;// index changed
                     m_Buffer[last] = null;
                     --m_Count;
                 }
@@ -175,6 +250,19 @@ namespace Core.Collections
             {
                 throw new Exception("the item is not belong to set, can not remove it");
             }
+        }
+
+        public T PopLast()
+        {
+            if (m_Count == 0)
+            {
+                throw new Exception("pop, but count 0");
+            }
+
+            T item = m_Buffer[--m_Count];
+            item.set = null;
+            ++m_Version;
+            return item;
         }
 
         /* 此接口不安全
