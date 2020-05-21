@@ -215,6 +215,50 @@ namespace Core.Collections
             ++m_Version;
         }
 
+        public void Move(T from, T to)
+        {
+            if (!this.Contains(from))
+            {
+                throw new Exception("key set move, from is not belong to set");
+            }
+            if (!this.Contains(to))
+            {
+                throw new Exception("key set move, to is not belong to set");
+            }
+            
+            int indexFrom = from.KeyIndex;
+            int indexTo = to.KeyIndex;
+
+            if (indexFrom == indexTo)
+            {
+                throw new Exception("key set move, from and to is same one");
+            }
+            // move after
+            else if (indexFrom < indexTo)
+            {
+                for (int i = indexFrom; i < indexTo; ++i)
+                {
+                    m_Buffer[i] = m_Buffer[i + 1];
+                    m_Buffer[i].KeyIndex = i;// index changed
+                }
+
+                m_Buffer[indexTo] = from;
+                from.KeyIndex = indexTo;
+            }
+            // move before
+            else
+            {
+                for (int i = indexFrom; i > indexTo; --i)
+                {
+                    m_Buffer[i] = m_Buffer[i - 1];
+                    m_Buffer[i].KeyIndex = i;// index changed
+                }
+
+                m_Buffer[indexTo] = from;
+                from.KeyIndex = indexTo;
+            }
+        }
+
         public bool Contains(T item)
         {
             return item.set == this;// && item == m_Buffer[item.index];
@@ -265,7 +309,7 @@ namespace Core.Collections
             return item;
         }
 
-        /* 此接口不安全
+        /* not safe
         public void RemoveAt(int index)
         {
             if (index >= 0 && index < m_Count)
